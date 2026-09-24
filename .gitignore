@@ -1,0 +1,15 @@
+# 虚拟环境
+.venv/
+.venv_old/
+.venv_broken_20260715/
+__pycache__/
+*.pyc
+
+# 环境密钥
+.env
+
+# 日志文件
+*.log
+
+# 系统文件
+.DS_Store

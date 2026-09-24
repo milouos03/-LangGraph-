@@ -1,0 +1,1424 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>项目甘特图 · 计划与实际</title>
+  <style>
+    :root {
+      --ink: #17243b;
+      --muted: #68758b;
+      --line: #dfe6ef;
+      --line-soft: #edf1f6;
+      --panel: #ffffff;
+      --canvas: #f4f7fb;
+      --navy: #152a48;
+      --blue: #2673ea;
+      --blue-soft: #9ecbff;
+      --blue-line: #70adef;
+      --green: #32b874;
+      --green-dark: #147d4c;
+      --red: #ec5d62;
+      --red-dark: #b8323a;
+      --amber: #d99018;
+      --left-width: 326px;
+      --row-height: 72px;
+      --head-height: 88px;
+      --radius: 18px;
+      font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--canvas); }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 5% -5%, rgba(77, 141, 235, 0.13), transparent 28%),
+        linear-gradient(180deg, #f8faff 0, var(--canvas) 280px);
+    }
+
+    button, input { font: inherit; }
+
+    button { -webkit-tap-highlight-color: transparent; }
+
+    .app {
+      width: min(1560px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 30px 0 42px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: #fff;
+      background: var(--navy);
+      box-shadow: 0 10px 24px rgba(21, 42, 72, 0.18);
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(22px, 2.4vw, 31px);
+      line-height: 1.14;
+      letter-spacing: -0.04em;
+    }
+
+    .brand p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+
+    .save-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .save-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(50, 184, 116, 0.12);
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(215, 224, 235, 0.92);
+      border-radius: var(--radius);
+      box-shadow: 0 18px 50px rgba(37, 55, 84, 0.07);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      background: var(--line-soft);
+    }
+
+    .stat { padding: 17px 20px; background: #fff; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { margin-top: 4px; font-size: 24px; font-weight: 750; letter-spacing: -0.03em; }
+    .stat-value small { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+    .stat.green .stat-value { color: var(--green-dark); }
+    .stat.red .stat-value { color: var(--red-dark); }
+
+    .editor {
+      margin-bottom: 16px;
+      padding: 20px;
+    }
+
+    .editor-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 15px; }
+    .editor-title { margin: 0; font-size: 15px; font-weight: 760; }
+    .editor-hint { color: var(--muted); font-size: 12px; }
+
+    .task-form {
+      display: grid;
+      grid-template-columns: minmax(180px, 1.4fr) repeat(4, minmax(142px, 1fr)) auto;
+      align-items: end;
+      gap: 12px;
+    }
+
+    .field { display: grid; gap: 7px; }
+    .field label { color: #4e5c71; font-size: 12px; font-weight: 650; }
+
+    .field input {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      color: var(--ink);
+      background: #fbfcfe;
+      border: 1px solid #d8e0ea;
+      border-radius: 10px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+
+    .field input:hover { border-color: #b9c7d8; }
+    .field input:focus { background: #fff; border-color: #6b9ee8; box-shadow: 0 0 0 3px rgba(54, 121, 224, 0.13); }
+    .field input[aria-invalid="true"] { border-color: var(--red); box-shadow: 0 0 0 3px rgba(236, 93, 98, 0.1); }
+
+    .form-actions { display: flex; gap: 8px; }
+
+    .btn {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 0 14px;
+      color: #314056;
+      background: #fff;
+      border: 1px solid #d4dde9;
+      border-radius: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .btn:hover { background: #f7f9fc; border-color: #b9c7d8; }
+    .btn:active { transform: translateY(1px); }
+    .btn:focus-visible { outline: 3px solid rgba(38, 115, 234, 0.2); outline-offset: 2px; }
+    .btn-primary { height: 42px; color: #fff; background: var(--navy); border-color: var(--navy); box-shadow: 0 7px 16px rgba(21, 42, 72, 0.16); }
+    .btn-primary:hover { background: #203b61; border-color: #203b61; }
+    .btn-soft { color: #215fb8; background: #f0f6ff; border-color: #cfe0f8; }
+    .btn-icon { width: 40px; padding: 0; font-size: 18px; }
+    .btn[hidden] { display: none; }
+
+    .form-error { min-height: 18px; margin: 10px 0 -4px; color: var(--red-dark); font-size: 12px; }
+
+    .chart-panel { overflow: hidden; }
+
+    .chart-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 15px 17px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .legend { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 12px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 6px; }
+    .swatch { width: 20px; height: 8px; border-radius: 4px; }
+    .swatch.plan { background: var(--blue-soft); }
+    .swatch.good { background: var(--green); }
+    .swatch.delay { background: var(--red); }
+    .zoom-label { min-width: 52px; color: var(--muted); text-align: center; font-size: 12px; }
+
+    .chart-shell {
+      position: relative;
+      display: grid;
+      grid-template-columns: var(--left-width) minmax(0, 1fr);
+      min-height: 288px;
+    }
+
+    .task-side {
+      position: relative;
+      z-index: 4;
+      background: #fff;
+      border-right: 1px solid var(--line);
+      box-shadow: 8px 0 18px rgba(28, 46, 73, 0.035);
+    }
+
+    .task-side-head {
+      height: var(--head-height);
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 0 17px 12px;
+      color: #425067;
+      border-bottom: 1px solid var(--line);
+      background: #fafbfd;
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .task-count { color: var(--muted); font-weight: 500; }
+
+    .task-row {
+      height: var(--row-height);
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px 0 15px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .task-index {
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      color: #6b7890;
+      background: #f1f4f8;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .task-copy { min-width: 0; }
+    .task-name { overflow: hidden; color: #24334b; font-size: 13px; font-weight: 720; text-overflow: ellipsis; white-space: nowrap; }
+    .task-meta { display: flex; align-items: center; gap: 7px; margin-top: 6px; }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: #f0f3f7;
+      color: #627086;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .status-pill.good { color: var(--green-dark); background: #e7f8ef; }
+    .status-pill.delay { color: var(--red-dark); background: #feebec; }
+    .status-pill.progress { color: #2163bd; background: #eaf2ff; }
+    .date-summary { color: #8490a2; font-size: 10px; }
+
+    .row-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
+    .task-row:hover .row-actions, .task-row:focus-within .row-actions { opacity: 1; }
+    .row-action {
+      width: 29px;
+      height: 29px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: #7b879a;
+      background: transparent;
+      border: 0;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .row-action:hover { color: #23446e; background: #eef3f9; }
+    .row-action.delete:hover { color: var(--red-dark); background: #fff0f1; }
+
+    .timeline-viewport {
+      position: relative;
+      min-width: 0;
+      overflow: auto;
+      background: #fff;
+      scrollbar-color: #bdc8d7 #eef2f6;
+      scrollbar-width: thin;
+    }
+
+    .timeline { position: relative; min-width: 100%; }
+    .timeline-head { position: sticky; z-index: 3; top: 0; height: var(--head-height); color: #536077; background: rgba(250, 251, 253, 0.98); border-bottom: 1px solid var(--line); }
+    .time-band { position: relative; height: 27px; border-bottom: 1px solid var(--line-soft); overflow: hidden; }
+    .time-band.days { height: 34px; border-bottom: 0; }
+    .time-cell {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 0 4px;
+      border-right: 1px solid var(--line);
+      white-space: nowrap;
+      font-size: 10px;
+      font-weight: 650;
+    }
+    .year-cell { color: #243a5a; background: #f5f8fc; font-weight: 760; }
+    .month-cell { color: #52637b; }
+    .day-cell { color: #7b8799; border-right-color: var(--line-soft); font-size: 9px; font-weight: 600; }
+    .day-cell.weekend { color: #bc7049; background: #fff9f5; }
+    .day-cell.today { color: #fff; background: var(--navy); font-weight: 780; }
+    .day-cell .full-date { display: none; }
+
+    .timeline-body { position: relative; }
+    .timeline-row {
+      position: relative;
+      height: var(--row-height);
+      border-bottom: 1px solid var(--line-soft);
+      background-image: linear-gradient(to right, var(--line-soft) 1px, transparent 1px);
+      background-size: var(--day-width, 24px) 100%;
+    }
+    .timeline-row::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(90deg, transparent 0, transparent calc(var(--week-width, 168px) - 1px), rgba(174, 186, 202, 0.38) calc(var(--week-width, 168px) - 1px), rgba(174, 186, 202, 0.38) var(--week-width, 168px));
+    }
+    .timeline-row:nth-child(even) { background-color: #fcfdff; }
+
+    .bar {
+      position: absolute;
+      z-index: 2;
+      min-width: 3px;
+      height: 19px;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      padding: 0 8px;
+      border-radius: 6px;
+      box-shadow: 0 2px 7px rgba(29, 55, 88, 0.1);
+      white-space: nowrap;
+      font-size: 9px;
+      font-weight: 750;
+      letter-spacing: 0.01em;
+    }
+    .bar.plan { top: 13px; color: #174e85; background: var(--blue-soft); border: 1px solid var(--blue-line); }
+    .bar.actual { top: 40px; color: #fff; }
+    .bar.actual.good { background: var(--green); }
+    .bar.actual.delay { background: var(--red); }
+    .bar-label-small { display: none; }
+
+    .today-line {
+      position: absolute;
+      z-index: 2;
+      top: var(--head-height);
+      bottom: 0;
+      width: 1px;
+      background: rgba(21, 42, 72, 0.58);
+      pointer-events: none;
+    }
+    .today-line::before { content: ""; position: absolute; top: -4px; left: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--navy); }
+
+    .empty {
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+      grid-column: 1 / -1;
+      padding: 42px;
+      text-align: center;
+    }
+    .empty-icon { width: 52px; height: 52px; display: grid; place-items: center; margin: 0 auto 14px; color: #5c78a0; background: #edf3fa; border-radius: 16px; font-size: 25px; }
+    .empty h3 { margin: 0; font-size: 16px; }
+    .empty p { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+
+    .toast {
+      position: fixed;
+      z-index: 20;
+      left: 50%;
+      bottom: 28px;
+      transform: translate(-50%, 14px);
+      padding: 10px 15px;
+      color: #fff;
+      background: rgba(21, 42, 72, 0.94);
+      border-radius: 10px;
+      box-shadow: 0 10px 28px rgba(16, 30, 51, 0.2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      font-size: 12px;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+    @media (max-width: 1120px) {
+      :root { --left-width: 286px; }
+      .task-form { grid-template-columns: repeat(4, minmax(130px, 1fr)); }
+      .task-form .name-field { grid-column: span 2; }
+      .form-actions { align-self: end; }
+    }
+
+    @media (max-width: 760px) {
+      :root { --left-width: 236px; }
+      .app { width: min(100% - 20px, 1560px); padding-top: 18px; }
+      .topbar { align-items: flex-start; margin-bottom: 16px; }
+      .brand p { display: none; }
+      .brand-mark { width: 40px; height: 40px; border-radius: 12px; }
+      .save-state { margin-top: 11px; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stat { padding: 13px 15px; }
+      .stat-value { font-size: 20px; }
+      .editor { padding: 16px; }
+      .editor-hint { display: none; }
+      .task-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .task-form .name-field { grid-column: 1 / -1; }
+      .form-actions { grid-column: 1 / -1; }
+      .form-actions .btn-primary { flex: 1; }
+      .chart-toolbar { align-items: flex-start; }
+      .legend { gap: 8px; flex-wrap: wrap; }
+      .toolbar-right { justify-content: flex-end; }
+      .task-row { grid-template-columns: 24px minmax(0, 1fr); padding-left: 9px; gap: 7px; }
+      .task-index { width: 24px; height: 24px; }
+      .row-actions { display: none; }
+      .date-summary { display: none; }
+      .task-side-head { padding-left: 12px; }
+    }
+
+    @media (max-width: 470px) {
+      :root { --left-width: 190px; }
+      .brand h1 { font-size: 20px; }
+      .save-state span:last-child { display: none; }
+      .task-form { grid-template-columns: 1fr; }
+      .task-form .name-field, .form-actions { grid-column: auto; }
+      .chart-toolbar { display: grid; }
+      .toolbar-right { justify-content: flex-start; }
+      .btn-text-mobile { display: none; }
+      .task-name { font-size: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">甘</div>
+        <div>
+          <h1>项目甘特图</h1>
+          <p>计划与实际进度 · 数据保存在当前浏览器</p>
+        </div>
+      </div>
+      <div class="save-state" id="saveState" role="status" aria-live="polite">
+        <span class="save-dot"></span>
+        <span>已自动保存</span>
+      </div>
+    </header>
+
+    <section class="stats panel" aria-label="项目概览">
+      <div class="stat">
+        <div class="stat-label">任务总数</div>
+        <div class="stat-value"><span id="totalCount">0</span> <small>项</small></div>
+      </div>
+      <div class="stat green">
+        <div class="stat-label">提前 / 正常完成</div>
+        <div class="stat-value"><span id="goodCount">0</span> <small>项</small></div>
+      </div>
+      <div class="stat red">
+        <div class="stat-label">已延误</div>
+        <div class="stat-value"><span id="delayCount">0</span> <small>项</small></div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">计划跨度</div>
+        <div class="stat-value"><span id="spanCount">0</span> <small>天</small></div>
+      </div>
+    </section>
+
+    <section class="editor panel" aria-labelledby="editorTitle">
+      <div class="editor-title-row">
+        <h2 class="editor-title" id="editorTitle">添加任务</h2>
+        <span class="editor-hint">实际日期可稍后补充 · Ctrl/⌘ + Enter 快速保存</span>
+      </div>
+      <form class="task-form" id="taskForm" novalidate>
+        <div class="field name-field">
+          <label for="taskName">任务名称</label>
+          <input id="taskName" name="taskName" maxlength="60" placeholder="例如：完成产品原型" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label for="planStart">计划开始</label>
+          <input id="planStart" name="planStart" type="date" required>
+        </div>
+        <div class="field">
+          <label for="planEnd">计划结束</label>
+          <input id="planEnd" name="planEnd" type="date" required>
+        </div>
+        <div class="field">
+          <label for="actualStart">实际开始（可选）</label>
+          <input id="actualStart" name="actualStart" type="date">
+        </div>
+        <div class="field">
+          <label for="actualEnd">实际结束（可选）</label>
+          <input id="actualEnd" name="actualEnd" type="date">
+        </div>
+        <div class="form-actions">
+          <button class="btn" type="button" id="cancelEdit" hidden>取消</button>
+          <button class="btn btn-primary" type="submit" id="submitTask">＋ 添加任务</button>
+        </div>
+      </form>
+      <div class="form-error" id="formError" role="alert"></div>
+    </section>
+
+    <section class="chart-panel panel" aria-label="甘特图">
+      <div class="chart-toolbar">
+        <div class="toolbar-left">
+          <button class="btn btn-soft" type="button" id="showAll">↔ <span>显示全部柱子</span></button>
+          <button class="btn btn-soft" type="button" id="saveImage" title="把完整甘特图保存为 PNG 图片">▣ <span>保存图片</span></button>
+          <button class="btn" type="button" id="saveFile" title="保存为可备份的 JSON 文件">⇩ <span>保存数据</span></button>
+          <button class="btn" type="button" id="importFile" title="从 JSON 备份文件恢复">⇧ <span>导入数据</span></button>
+          <input class="sr-only" id="dataFile" type="file" accept="application/json,.json" tabindex="-1" aria-hidden="true">
+          <div class="legend" aria-label="图例">
+            <span class="legend-item"><i class="swatch plan"></i>计划</span>
+            <span class="legend-item"><i class="swatch good"></i>提前 / 正常</span>
+            <span class="legend-item"><i class="swatch delay"></i>延误</span>
+          </div>
+        </div>
+        <div class="toolbar-right" aria-label="时间轴缩放">
+          <button class="btn btn-icon" type="button" id="zoomOut" aria-label="缩小时间轴" title="缩小">−</button>
+          <span class="zoom-label" id="zoomLabel">自适应</span>
+          <button class="btn btn-icon" type="button" id="zoomIn" aria-label="放大时间轴" title="放大">＋</button>
+        </div>
+      </div>
+      <div class="chart-shell" id="chartShell"></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const LEGACY_STORAGE_KEY = 'gantt-planner-tasks-v1';
+      const PAGE_STORAGE_ID = `${location.protocol}//${location.host}${decodeURIComponent(location.pathname).toLowerCase()}`;
+      const FILE_NAME = PAGE_STORAGE_ID.slice(PAGE_STORAGE_ID.lastIndexOf('/') + 1);
+      const IS_MASTER_FILE = FILE_NAME === 'gantt-planner.html';
+      const MASTER_PAGE_STORAGE_ID = `${PAGE_STORAGE_ID.slice(0, PAGE_STORAGE_ID.lastIndexOf('/') + 1)}gantt-planner.html`;
+      const PREVIOUS_STORAGE_KEY = `gantt-planner-tasks-v2:${hashText(PAGE_STORAGE_ID)}`;
+      const MASTER_PREVIOUS_STORAGE_KEY = `gantt-planner-tasks-v2:${hashText(MASTER_PAGE_STORAGE_ID)}`;
+      const STORAGE_KEY = `gantt-planner-tasks-v3:${hashText(PAGE_STORAGE_ID)}`;
+      const MASTER_STORAGE_KEY = `gantt-planner-tasks-v3:${hashText(MASTER_PAGE_STORAGE_ID)}`;
+      const MASTER_SNAPSHOT_KEY = 'gantt-planner-master-snapshot-v1';
+      const DAY_MS = 86400000;
+      const $ = (selector) => document.querySelector(selector);
+      const elements = {
+        form: $('#taskForm'),
+        name: $('#taskName'),
+        planStart: $('#planStart'),
+        planEnd: $('#planEnd'),
+        actualStart: $('#actualStart'),
+        actualEnd: $('#actualEnd'),
+        submit: $('#submitTask'),
+        cancel: $('#cancelEdit'),
+        title: $('#editorTitle'),
+        error: $('#formError'),
+        shell: $('#chartShell'),
+        showAll: $('#showAll'),
+        saveImage: $('#saveImage'),
+        saveFile: $('#saveFile'),
+        importFile: $('#importFile'),
+        dataFile: $('#dataFile'),
+        zoomOut: $('#zoomOut'),
+        zoomIn: $('#zoomIn'),
+        zoomLabel: $('#zoomLabel'),
+        saveState: $('#saveState'),
+        toast: $('#toast'),
+        totalCount: $('#totalCount'),
+        goodCount: $('#goodCount'),
+        delayCount: $('#delayCount'),
+        spanCount: $('#spanCount')
+      };
+
+      let tasks = loadTasks();
+      let editingId = null;
+      let dayWidth = 28;
+      let fitMode = true;
+      let timelineViewport = null;
+      let range = null;
+      let resizeTimer = null;
+      let toastTimer = null;
+
+      function hashText(value) {
+        let hash = 2166136261;
+        for (let index = 0; index < value.length; index += 1) {
+          hash ^= value.charCodeAt(index);
+          hash = Math.imul(hash, 16777619);
+        }
+        return (hash >>> 0).toString(36);
+      }
+
+      function parseDate(value) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+        const [year, month, day] = value.split('-').map(Number);
+        const result = new Date(Date.UTC(year, month - 1, day));
+        return result.getUTCFullYear() === year && result.getUTCMonth() === month - 1 && result.getUTCDate() === day ? result : null;
+      }
+
+      function dateToInput(date) {
+        return date.toISOString().slice(0, 10);
+      }
+
+      function shiftDate(value, amount) {
+        const date = parseDate(value);
+        return dateToInput(new Date(date.getTime() + amount * DAY_MS));
+      }
+
+      function localToday() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      }
+
+      function diffDays(start, end) {
+        return Math.round((parseDate(end) - parseDate(start)) / DAY_MS);
+      }
+
+      function inclusiveDays(start, end) {
+        return diffDays(start, end) + 1;
+      }
+
+      function formatShort(value) {
+        const date = parseDate(value);
+        return date ? `${date.getUTCMonth() + 1}月${date.getUTCDate()}日` : '—';
+      }
+
+      function formatFull(value) {
+        const date = parseDate(value);
+        return date ? `${date.getUTCFullYear()}年${String(date.getUTCMonth() + 1).padStart(2, '0')}月${String(date.getUTCDate()).padStart(2, '0')}日` : '未填写';
+      }
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+      }
+
+      function createDemoTasks() {
+        const today = localToday();
+        return [
+          {
+            id: makeId(), name: '需求梳理',
+            planStart: shiftDate(today, -12), planEnd: shiftDate(today, -8),
+            actualStart: shiftDate(today, -12), actualEnd: shiftDate(today, -9)
+          },
+          {
+            id: makeId(), name: '界面设计',
+            planStart: shiftDate(today, -7), planEnd: shiftDate(today, -2),
+            actualStart: shiftDate(today, -6), actualEnd: shiftDate(today, 0)
+          },
+          {
+            id: makeId(), name: '功能开发',
+            planStart: shiftDate(today, 1), planEnd: shiftDate(today, 8),
+            actualStart: '', actualEnd: ''
+          }
+        ];
+      }
+
+      function readStoredTasks(key) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw === null) return null;
+          const parsed = JSON.parse(raw);
+          return Array.isArray(parsed) ? parsed.filter(isValidTask) : null;
+        } catch (error) {
+          console.warn('无法读取已保存数据', error);
+          return null;
+        }
+      }
+
+      function persistTasks(taskList) {
+        const serialized = JSON.stringify(taskList);
+        localStorage.setItem(STORAGE_KEY, serialized);
+        if (IS_MASTER_FILE) localStorage.setItem(MASTER_SNAPSHOT_KEY, serialized);
+      }
+
+      function loadTasks() {
+        const current = readStoredTasks(STORAGE_KEY);
+        if (current !== null) {
+          if (IS_MASTER_FILE) localStorage.setItem(MASTER_SNAPSHOT_KEY, JSON.stringify(current));
+          return current;
+        }
+
+        let initialTasks;
+        if (IS_MASTER_FILE) {
+          initialTasks = readStoredTasks(PREVIOUS_STORAGE_KEY)
+            ?? readStoredTasks(LEGACY_STORAGE_KEY)
+            ?? createDemoTasks();
+        } else {
+          initialTasks = readStoredTasks(MASTER_SNAPSHOT_KEY)
+            ?? readStoredTasks(MASTER_STORAGE_KEY)
+            ?? readStoredTasks(MASTER_PREVIOUS_STORAGE_KEY)
+            ?? readStoredTasks(LEGACY_STORAGE_KEY)
+            ?? createDemoTasks();
+        }
+
+        persistTasks(initialTasks);
+        return initialTasks;
+      }
+
+      function isValidTask(task) {
+        return task && typeof task.name === 'string' && parseDate(task.planStart) && parseDate(task.planEnd) && task.planStart <= task.planEnd;
+      }
+
+      function makeId() {
+        if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        return `task-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      }
+
+      function saveTasks(message = '已自动保存') {
+        persistTasks(tasks);
+        const label = elements.saveState.querySelector('span:last-child');
+        label.textContent = message;
+        setTimeout(() => { label.textContent = '已自动保存'; }, 1200);
+      }
+
+      function exportData() {
+        const payload = {
+          type: 'gantt-planner-backup',
+          version: 1,
+          savedAt: new Date().toISOString(),
+          tasks
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `甘特图数据-${localToday()}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('数据文件已保存到本地');
+      }
+
+      function roundedRect(ctx, x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + width, y, x + width, y + height, r);
+        ctx.arcTo(x + width, y + height, x, y + height, r);
+        ctx.arcTo(x, y + height, x, y, r);
+        ctx.arcTo(x, y, x + width, y, r);
+        ctx.closePath();
+      }
+
+      function shortenedText(ctx, text, maxWidth) {
+        if (ctx.measureText(text).width <= maxWidth) return text;
+        let value = text;
+        while (value.length > 1 && ctx.measureText(`${value}…`).width > maxWidth) value = value.slice(0, -1);
+        return `${value}…`;
+      }
+
+      function buildImageDateGroups(imageRange) {
+        const years = [];
+        const months = [];
+        const dates = [];
+        const start = parseDate(imageRange.start);
+        let lastYear = '';
+        let lastMonth = '';
+        let yearGroup;
+        let monthGroup;
+        for (let index = 0; index < imageRange.days; index += 1) {
+          const date = new Date(start.getTime() + index * DAY_MS);
+          const year = date.getUTCFullYear();
+          const month = date.getUTCMonth() + 1;
+          const value = dateToInput(date);
+          if (String(year) !== lastYear) {
+            lastYear = String(year);
+            yearGroup = { label: `${year}年`, start: index, length: 0 };
+            years.push(yearGroup);
+          }
+          yearGroup.length += 1;
+          const monthKey = `${year}-${month}`;
+          if (monthKey !== lastMonth) {
+            lastMonth = monthKey;
+            monthGroup = { label: `${month}月`, start: index, length: 0 };
+            months.push(monthGroup);
+          }
+          monthGroup.length += 1;
+          dates.push({
+            value,
+            day: date.getUTCDate(),
+            month,
+            weekend: date.getUTCDay() === 0 || date.getUTCDay() === 6
+          });
+        }
+        return { years, months, dates };
+      }
+
+      function imageFileName() {
+        const now = new Date();
+        const time = [now.getHours(), now.getMinutes(), now.getSeconds()].map((value) => String(value).padStart(2, '0')).join('');
+        return `项目甘特图-${localToday()}-${time}.png`;
+      }
+
+      function exportImage() {
+        if (!tasks.length) {
+          showToast('请先添加任务');
+          return;
+        }
+
+        const imageRange = calculateRange();
+        const padding = 34;
+        const titleHeight = 92;
+        const leftWidth = 310;
+        const headerHeight = 86;
+        const rowHeight = 68;
+        const chartWidth = Math.max(900, Math.min(6000, imageRange.days * 30));
+        const logicalWidth = padding * 2 + leftWidth + chartWidth;
+        const logicalHeight = padding * 2 + titleHeight + headerHeight + rowHeight * tasks.length;
+        const maxPixels = 26000000;
+        const scale = Math.min(2, Math.max(1, Math.sqrt(maxPixels / (logicalWidth * logicalHeight))));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(logicalWidth * scale);
+        canvas.height = Math.round(logicalHeight * scale);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          showToast('当前浏览器无法生成图片');
+          return;
+        }
+        ctx.scale(scale, scale);
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 1;
+
+        ctx.fillStyle = '#f4f7fb';
+        ctx.fillRect(0, 0, logicalWidth, logicalHeight);
+        ctx.fillStyle = '#ffffff';
+        roundedRect(ctx, padding, padding, logicalWidth - padding * 2, logicalHeight - padding * 2, 18);
+        ctx.fill();
+
+        ctx.fillStyle = '#17243b';
+        ctx.font = '700 28px "Microsoft YaHei", sans-serif';
+        ctx.fillText('项目甘特图', padding + 22, padding + 31);
+        ctx.fillStyle = '#68758b';
+        ctx.font = '13px "Microsoft YaHei", sans-serif';
+        ctx.fillText(`${formatFull(imageRange.start)} — ${formatFull(imageRange.end)} · 共 ${tasks.length} 项任务`, padding + 22, padding + 62);
+
+        const legendY = padding + 33;
+        const legendStart = logicalWidth - padding - 360;
+        const legends = [
+          { label: '计划', color: '#9ecbff' },
+          { label: '提前 / 正常', color: '#32b874' },
+          { label: '延误', color: '#ec5d62' }
+        ];
+        let legendX = legendStart;
+        ctx.font = '12px "Microsoft YaHei", sans-serif';
+        legends.forEach((item) => {
+          ctx.fillStyle = item.color;
+          roundedRect(ctx, legendX, legendY - 5, 22, 10, 5);
+          ctx.fill();
+          ctx.fillStyle = '#68758b';
+          ctx.fillText(item.label, legendX + 29, legendY);
+          legendX += ctx.measureText(item.label).width + 62;
+        });
+
+        const gridX = padding + leftWidth;
+        const gridY = padding + titleHeight;
+        const dayPixel = chartWidth / imageRange.days;
+        const groups = buildImageDateGroups(imageRange);
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(padding, gridY, leftWidth, headerHeight);
+        ctx.fillStyle = '#f7f9fc';
+        ctx.fillRect(gridX, gridY, chartWidth, headerHeight);
+        ctx.fillStyle = '#425067';
+        ctx.font = '700 13px "Microsoft YaHei", sans-serif';
+        ctx.fillText('任务 / 状态', padding + 18, gridY + headerHeight / 2);
+
+        function drawGroups(groupList, top, height, font) {
+          ctx.font = font;
+          groupList.forEach((group) => {
+            const x = gridX + group.start * dayPixel;
+            const width = group.length * dayPixel;
+            ctx.strokeStyle = '#dfe6ef';
+            ctx.strokeRect(x, top, width, height);
+            if (width >= 18) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(x, top, width, height);
+              ctx.clip();
+              ctx.fillStyle = '#52637b';
+              ctx.textAlign = 'center';
+              ctx.fillText(group.label, x + width / 2, top + height / 2);
+              ctx.restore();
+            }
+          });
+          ctx.textAlign = 'left';
+        }
+
+        drawGroups(groups.years, gridY, 26, '700 12px "Microsoft YaHei", sans-serif');
+        drawGroups(groups.months, gridY + 26, 26, '600 11px "Microsoft YaHei", sans-serif');
+
+        const dayTop = gridY + 52;
+        const dayHeight = 34;
+        const dayLabelStep = Math.max(1, Math.ceil(18 / dayPixel));
+        ctx.font = '10px "Microsoft YaHei", sans-serif';
+        groups.dates.forEach((date, index) => {
+          const x = gridX + index * dayPixel;
+          if (date.weekend) {
+            ctx.fillStyle = '#fff8f3';
+            ctx.fillRect(x, dayTop, dayPixel, dayHeight);
+          }
+          ctx.strokeStyle = '#edf1f6';
+          ctx.beginPath();
+          ctx.moveTo(x, dayTop);
+          ctx.lineTo(x, gridY + headerHeight + tasks.length * rowHeight);
+          ctx.stroke();
+          if (index % dayLabelStep === 0 || date.day === 1) {
+            ctx.fillStyle = date.weekend ? '#bc7049' : '#7b8799';
+            ctx.textAlign = 'center';
+            ctx.fillText(String(date.day).padStart(2, '0'), x + dayPixel / 2, dayTop + dayHeight / 2);
+          }
+        });
+        ctx.textAlign = 'left';
+
+        const today = localToday();
+        const todayInRange = today >= imageRange.start && today <= imageRange.end;
+        const todayX = todayInRange ? gridX + (diffDays(imageRange.start, today) + 0.5) * dayPixel : 0;
+
+        tasks.forEach((task, index) => {
+          const rowY = gridY + headerHeight + index * rowHeight;
+          const status = getStatus(task);
+          ctx.fillStyle = index % 2 ? '#fcfdff' : '#ffffff';
+          ctx.fillRect(padding, rowY, leftWidth + chartWidth, rowHeight);
+          ctx.strokeStyle = '#edf1f6';
+          ctx.beginPath();
+          ctx.moveTo(padding, rowY + rowHeight);
+          ctx.lineTo(padding + leftWidth + chartWidth, rowY + rowHeight);
+          ctx.stroke();
+
+          ctx.fillStyle = '#f1f4f8';
+          roundedRect(ctx, padding + 16, rowY + 20, 28, 28, 8);
+          ctx.fill();
+          ctx.fillStyle = '#6b7890';
+          ctx.font = '700 10px "Microsoft YaHei", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(String(index + 1).padStart(2, '0'), padding + 30, rowY + 34);
+          ctx.textAlign = 'left';
+
+          ctx.fillStyle = '#24334b';
+          ctx.font = '700 13px "Microsoft YaHei", sans-serif';
+          ctx.fillText(shortenedText(ctx, task.name, leftWidth - 82), padding + 56, rowY + 25);
+          ctx.fillStyle = status.key === 'delay' ? '#b8323a' : status.key === 'good' ? '#147d4c' : '#52637b';
+          ctx.font = '11px "Microsoft YaHei", sans-serif';
+          ctx.fillText(shortenedText(ctx, `${status.label} · ${formatShort(task.planStart)}—${formatShort(task.planEnd)}`, leftWidth - 82), padding + 56, rowY + 48);
+
+          function drawBar(start, end, y, fill, stroke, label, textColor) {
+            const x = gridX + diffDays(imageRange.start, start) * dayPixel;
+            const width = Math.max(4, inclusiveDays(start, end) * dayPixel);
+            ctx.fillStyle = fill;
+            roundedRect(ctx, x, y, width, 19, 5);
+            ctx.fill();
+            if (stroke) {
+              ctx.strokeStyle = stroke;
+              ctx.stroke();
+            }
+            if (width >= 35) {
+              ctx.save();
+              ctx.beginPath();
+              ctx.rect(x, y, width, 19);
+              ctx.clip();
+              ctx.fillStyle = textColor;
+              ctx.font = '700 9px "Microsoft YaHei", sans-serif';
+              ctx.fillText(label, x + 7, y + 10);
+              ctx.restore();
+            }
+          }
+
+          drawBar(task.planStart, task.planEnd, rowY + 12, '#9ecbff', '#70adef', '计划', '#174e85');
+          if (task.actualStart) {
+            drawBar(task.actualStart, actualDisplayEnd(task), rowY + 39, status.barClass === 'delay' ? '#ec5d62' : '#32b874', '', '实际', '#ffffff');
+          }
+        });
+
+        if (todayInRange) {
+          ctx.strokeStyle = 'rgba(21, 42, 72, 0.58)';
+          ctx.beginPath();
+          ctx.moveTo(todayX, gridY + 52);
+          ctx.lineTo(todayX, gridY + headerHeight + tasks.length * rowHeight);
+          ctx.stroke();
+        }
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            showToast('图片生成失败');
+            return;
+          }
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = imageFileName();
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+          showToast('甘特图图片已保存');
+        }, 'image/png');
+      }
+
+      function normalizeImportedTask(task) {
+        if (!isValidTask(task)) return null;
+        const actualStart = parseDate(task.actualStart) ? task.actualStart : '';
+        const actualEnd = parseDate(task.actualEnd) ? task.actualEnd : '';
+        if (actualEnd && !actualStart) return null;
+        if (actualStart && actualEnd && actualEnd < actualStart) return null;
+        return {
+          id: typeof task.id === 'string' && task.id ? task.id : makeId(),
+          name: task.name.trim().slice(0, 60),
+          planStart: task.planStart,
+          planEnd: task.planEnd,
+          actualStart,
+          actualEnd
+        };
+      }
+
+      async function importData(file) {
+        try {
+          const parsed = JSON.parse(await file.text());
+          const source = Array.isArray(parsed) ? parsed : parsed && parsed.tasks;
+          if (!Array.isArray(source)) throw new Error('数据格式不正确');
+          const imported = source.map(normalizeImportedTask).filter(Boolean);
+          if (source.length && !imported.length) throw new Error('没有找到有效任务');
+          if (!window.confirm(`将用备份中的 ${imported.length} 项任务替换当前数据，是否继续？`)) return;
+          tasks = imported;
+          resetForm();
+          saveTasks('导入后已保存');
+          fitMode = true;
+          renderChart(false);
+          showToast(`已导入 ${imported.length} 项任务`);
+        } catch (error) {
+          window.alert(`导入失败：${error.message || '无法读取这个文件'}`);
+        } finally {
+          elements.dataFile.value = '';
+        }
+      }
+
+      function getStatus(task) {
+        const today = localToday();
+        if (task.actualEnd) {
+          if (task.actualEnd < task.planEnd) return { key: 'good', label: '提前完成', barClass: 'good' };
+          if (task.actualEnd === task.planEnd) return { key: 'good', label: '正常完成', barClass: 'good' };
+          return { key: 'delay', label: `延误 ${diffDays(task.planEnd, task.actualEnd)} 天`, barClass: 'delay' };
+        }
+        if (task.actualStart) {
+          if (today > task.planEnd) return { key: 'delay', label: `已延误 ${diffDays(task.planEnd, today)} 天`, barClass: 'delay' };
+          return { key: 'progress', label: '进行中', barClass: 'good' };
+        }
+        if (today > task.planEnd) return { key: 'delay', label: `未开始 · 延误 ${diffDays(task.planEnd, today)} 天`, barClass: 'delay' };
+        return { key: 'pending', label: '待开始', barClass: 'good' };
+      }
+
+      function actualDisplayEnd(task) {
+        if (task.actualEnd) return task.actualEnd;
+        if (!task.actualStart) return '';
+        const today = localToday();
+        return today < task.actualStart ? task.actualStart : today;
+      }
+
+      function calculateRange() {
+        if (!tasks.length) return null;
+        const dates = [];
+        tasks.forEach((task) => {
+          dates.push(task.planStart, task.planEnd);
+          if (task.actualStart) dates.push(task.actualStart);
+          const actualEnd = actualDisplayEnd(task);
+          if (actualEnd) dates.push(actualEnd);
+        });
+        const min = dates.reduce((a, b) => a < b ? a : b);
+        const max = dates.reduce((a, b) => a > b ? a : b);
+        return { start: shiftDate(min, -2), end: shiftDate(max, 2), days: inclusiveDays(shiftDate(min, -2), shiftDate(max, 2)) };
+      }
+
+      function calculateFitWidth() {
+        if (!range) return 28;
+        const available = Math.max(260, elements.shell.clientWidth - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--left-width')) - 2);
+        return Math.max(4, Math.min(48, available / range.days));
+      }
+
+      function updateStats() {
+        const statuses = tasks.map(getStatus);
+        elements.totalCount.textContent = tasks.length;
+        elements.goodCount.textContent = statuses.filter((status) => status.key === 'good').length;
+        elements.delayCount.textContent = statuses.filter((status) => status.key === 'delay').length;
+        if (tasks.length) {
+          const starts = tasks.map((task) => task.planStart);
+          const ends = tasks.map((task) => task.planEnd);
+          const min = starts.reduce((a, b) => a < b ? a : b);
+          const max = ends.reduce((a, b) => a > b ? a : b);
+          elements.spanCount.textContent = inclusiveDays(min, max);
+        } else {
+          elements.spanCount.textContent = 0;
+        }
+      }
+
+      function makeTimeCells(type, segments) {
+        return segments.map((segment) => {
+          const className = [
+            'time-cell', `${type}-cell`,
+            segment.weekend ? 'weekend' : '',
+            segment.today ? 'today' : ''
+          ].filter(Boolean).join(' ');
+          return `<div class="${className}" style="left:${segment.offset * dayWidth}px;width:${segment.length * dayWidth}px" title="${escapeHtml(segment.title || segment.label)}">${escapeHtml(segment.label)}</div>`;
+        }).join('');
+      }
+
+      function buildSegments() {
+        const years = [];
+        const months = [];
+        const days = [];
+        let currentYear = null;
+        let currentMonth = null;
+        let yearSegment = null;
+        let monthSegment = null;
+        const start = parseDate(range.start);
+        const today = localToday();
+
+        for (let index = 0; index < range.days; index += 1) {
+          const date = new Date(start.getTime() + index * DAY_MS);
+          const value = dateToInput(date);
+          const year = date.getUTCFullYear();
+          const month = date.getUTCMonth() + 1;
+          const day = date.getUTCDate();
+          const weekDay = date.getUTCDay();
+
+          if (year !== currentYear) {
+            currentYear = year;
+            yearSegment = { label: `${year}年`, title: `${year}年`, offset: index, length: 0 };
+            years.push(yearSegment);
+          }
+          yearSegment.length += 1;
+
+          const monthKey = `${year}-${month}`;
+          if (monthKey !== currentMonth) {
+            currentMonth = monthKey;
+            monthSegment = { label: `${month}月`, title: `${year}年${month}月`, offset: index, length: 0 };
+            months.push(monthSegment);
+          }
+          monthSegment.length += 1;
+
+          days.push({
+            label: dayWidth >= 18 ? String(day).padStart(2, '0') : (day === 1 ? `${month}/1` : String(day)),
+            title: `${year}年${String(month).padStart(2, '0')}月${String(day).padStart(2, '0')}日`,
+            offset: index,
+            length: 1,
+            weekend: weekDay === 0 || weekDay === 6,
+            today: value === today
+          });
+        }
+        return { years, months, days };
+      }
+
+      function renderTaskSide() {
+        return `
+          <div class="task-side">
+            <div class="task-side-head"><span>任务 / 状态</span><span class="task-count">${tasks.length} 项</span></div>
+            ${tasks.map((task, index) => {
+              const status = getStatus(task);
+              return `
+                <div class="task-row" data-task-id="${escapeHtml(task.id)}">
+                  <span class="task-index">${String(index + 1).padStart(2, '0')}</span>
+                  <div class="task-copy">
+                    <div class="task-name" title="${escapeHtml(task.name)}">${escapeHtml(task.name)}</div>
+                    <div class="task-meta">
+                      <span class="status-pill ${status.key}">${escapeHtml(status.label)}</span>
+                      <span class="date-summary">${formatShort(task.planStart)}—${formatShort(task.planEnd)}</span>
+                    </div>
+                  </div>
+                  <div class="row-actions">
+                    <button class="row-action edit" type="button" data-action="edit" data-id="${escapeHtml(task.id)}" aria-label="编辑 ${escapeHtml(task.name)}" title="编辑">✎</button>
+                    <button class="row-action delete" type="button" data-action="delete" data-id="${escapeHtml(task.id)}" aria-label="删除 ${escapeHtml(task.name)}" title="删除">×</button>
+                  </div>
+                </div>`;
+            }).join('')}
+          </div>`;
+      }
+
+      function barStyle(start, end) {
+        const left = diffDays(range.start, start) * dayWidth;
+        const width = inclusiveDays(start, end) * dayWidth;
+        return `left:${left}px;width:${Math.max(3, width)}px`;
+      }
+
+      function renderTimeline() {
+        const segments = buildSegments();
+        const totalWidth = Math.max(1, range.days * dayWidth);
+        const today = localToday();
+        const showToday = today >= range.start && today <= range.end;
+        const todayLeft = showToday ? (diffDays(range.start, today) + 0.5) * dayWidth : 0;
+
+        return `
+          <div class="timeline-viewport" id="timelineViewport">
+            <div class="timeline" style="width:${totalWidth}px;--day-width:${dayWidth}px;--week-width:${dayWidth * 7}px">
+              <div class="timeline-head">
+                <div class="time-band years">${makeTimeCells('year', segments.years)}</div>
+                <div class="time-band months">${makeTimeCells('month', segments.months)}</div>
+                <div class="time-band days">${makeTimeCells('day', segments.days)}</div>
+              </div>
+              ${showToday ? `<div class="today-line" style="left:${todayLeft}px" title="今天 · ${formatFull(today)}"></div>` : ''}
+              <div class="timeline-body">
+                ${tasks.map((task) => {
+                  const status = getStatus(task);
+                  const actualEnd = actualDisplayEnd(task);
+                  const planTitle = `计划：${formatFull(task.planStart)} — ${formatFull(task.planEnd)}`;
+                  const actualTitle = task.actualStart ? `实际：${formatFull(task.actualStart)} — ${task.actualEnd ? formatFull(task.actualEnd) : `进行中（截至${formatFull(actualEnd)}）`}` : '尚未填写实际日期';
+                  return `
+                    <div class="timeline-row">
+                      <div class="bar plan" style="${barStyle(task.planStart, task.planEnd)}" title="${escapeHtml(planTitle)}"><span>计划</span></div>
+                      ${task.actualStart ? `<div class="bar actual ${status.barClass}" style="${barStyle(task.actualStart, actualEnd)}" title="${escapeHtml(actualTitle)}"><span>实际</span></div>` : ''}
+                    </div>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function renderChart(keepScroll = true) {
+        updateStats();
+        range = calculateRange();
+        const oldScroll = timelineViewport ? timelineViewport.scrollLeft : 0;
+        if (!tasks.length) {
+          elements.shell.innerHTML = `
+            <div class="empty">
+              <div><div class="empty-icon">▥</div><h3>还没有任务</h3><p>在上方填写计划日期，第一条进度柱会立即出现。</p></div>
+            </div>`;
+          elements.zoomLabel.textContent = '自适应';
+          return;
+        }
+
+        if (fitMode) dayWidth = calculateFitWidth();
+        elements.shell.innerHTML = renderTaskSide() + renderTimeline();
+        timelineViewport = $('#timelineViewport');
+        if (keepScroll && !fitMode) timelineViewport.scrollLeft = oldScroll;
+        elements.zoomLabel.textContent = fitMode ? '自适应' : `${Math.round(dayWidth)}px/天`;
+      }
+
+      function validateForm() {
+        const values = {
+          name: elements.name.value.trim(),
+          planStart: elements.planStart.value,
+          planEnd: elements.planEnd.value,
+          actualStart: elements.actualStart.value,
+          actualEnd: elements.actualEnd.value
+        };
+        [elements.name, elements.planStart, elements.planEnd, elements.actualStart, elements.actualEnd].forEach((input) => input.removeAttribute('aria-invalid'));
+        elements.error.textContent = '';
+
+        if (!values.name) return formFail(elements.name, '请填写任务名称。');
+        if (!parseDate(values.planStart)) return formFail(elements.planStart, '请选择计划开始日期。');
+        if (!parseDate(values.planEnd)) return formFail(elements.planEnd, '请选择计划结束日期。');
+        if (values.planEnd < values.planStart) return formFail(elements.planEnd, '计划结束日期不能早于计划开始日期。');
+        if (values.actualEnd && !values.actualStart) return formFail(elements.actualStart, '填写实际结束日期前，请先填写实际开始日期。');
+        if (values.actualStart && values.actualEnd && values.actualEnd < values.actualStart) return formFail(elements.actualEnd, '实际结束日期不能早于实际开始日期。');
+        return values;
+      }
+
+      function formFail(input, message) {
+        input.setAttribute('aria-invalid', 'true');
+        input.focus();
+        elements.error.textContent = message;
+        return null;
+      }
+
+      function resetForm() {
+        editingId = null;
+        elements.form.reset();
+        elements.title.textContent = '添加任务';
+        elements.submit.textContent = '＋ 添加任务';
+        elements.cancel.hidden = true;
+        elements.error.textContent = '';
+        [elements.name, elements.planStart, elements.planEnd, elements.actualStart, elements.actualEnd].forEach((input) => input.removeAttribute('aria-invalid'));
+      }
+
+      function editTask(id) {
+        const task = tasks.find((item) => item.id === id);
+        if (!task) return;
+        editingId = id;
+        elements.name.value = task.name;
+        elements.planStart.value = task.planStart;
+        elements.planEnd.value = task.planEnd;
+        elements.actualStart.value = task.actualStart;
+        elements.actualEnd.value = task.actualEnd;
+        elements.title.textContent = '编辑任务';
+        elements.submit.textContent = '保存修改';
+        elements.cancel.hidden = false;
+        elements.error.textContent = '';
+        elements.name.focus();
+        elements.name.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function deleteTask(id) {
+        const task = tasks.find((item) => item.id === id);
+        if (!task) return;
+        if (!window.confirm(`确定删除“${task.name}”吗？`)) return;
+        tasks = tasks.filter((item) => item.id !== id);
+        if (editingId === id) resetForm();
+        saveTasks('删除后已保存');
+        fitMode = true;
+        renderChart(false);
+        showToast('任务已删除');
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        elements.toast.textContent = message;
+        elements.toast.classList.add('show');
+        toastTimer = setTimeout(() => elements.toast.classList.remove('show'), 1500);
+      }
+
+      elements.form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const values = validateForm();
+        if (!values) return;
+        if (editingId) {
+          tasks = tasks.map((task) => task.id === editingId ? { ...task, ...values } : task);
+          saveTasks('修改后已保存');
+          showToast('任务修改成功');
+        } else {
+          tasks.push({ id: makeId(), ...values });
+          saveTasks('添加后已保存');
+          showToast('任务添加成功');
+        }
+        resetForm();
+        fitMode = true;
+        renderChart(false);
+      });
+
+      elements.form.addEventListener('input', () => {
+        elements.error.textContent = '';
+      });
+
+      elements.form.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          event.preventDefault();
+          elements.form.requestSubmit();
+        }
+        if (event.key === 'Escape' && editingId) resetForm();
+      });
+
+      elements.cancel.addEventListener('click', resetForm);
+
+      elements.shell.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-action]');
+        if (!button) return;
+        if (button.dataset.action === 'edit') editTask(button.dataset.id);
+        if (button.dataset.action === 'delete') deleteTask(button.dataset.id);
+      });
+
+      elements.showAll.addEventListener('click', () => {
+        fitMode = true;
+        renderChart(false);
+        if (timelineViewport) timelineViewport.scrollLeft = 0;
+        showToast('已显示全部时间范围');
+      });
+
+      elements.saveFile.addEventListener('click', exportData);
+
+      elements.saveImage.addEventListener('click', exportImage);
+
+      elements.importFile.addEventListener('click', () => {
+        elements.dataFile.click();
+      });
+
+      elements.dataFile.addEventListener('change', () => {
+        const [file] = elements.dataFile.files;
+        if (file) importData(file);
+      });
+
+      elements.zoomIn.addEventListener('click', () => {
+        if (!tasks.length) return;
+        fitMode = false;
+        dayWidth = Math.min(84, Math.max(8, dayWidth * 1.25));
+        renderChart(true);
+      });
+
+      elements.zoomOut.addEventListener('click', () => {
+        if (!tasks.length) return;
+        fitMode = false;
+        dayWidth = Math.max(4, dayWidth / 1.25);
+        renderChart(true);
+      });
+
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+          if (fitMode) renderChart(false);
+        }, 100);
+      });
+
+      renderChart(false);
+    })();
+  </script>
+</body>
+</html>
